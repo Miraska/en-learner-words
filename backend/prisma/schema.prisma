@@ -1,0 +1,193 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               Int            @id @default(autoincrement())
+  email            String         @unique
+  password         String
+  nickname         String?        @unique
+  subscriptionTier String         @default("free") // Добавлено для поддержки подписки
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  learnedWords     UserWord[]
+  hardWords        UserHardWord[]
+  stats            UserStats?
+  dictionaries     Dictionary[]   @relation("UserCreatedDictionaries")
+  sessions         Session[]      @relation("UserSessions") // Добавлено для сессий
+
+  hintUsages    HintUsage[]      @relation("UserHints") // Добавлено для подсказок
+  subscriptions Subscription[]   @relation("UserSubscriptions") // Добавлено для подписки
+  likes         DictionaryLike[] @relation("UserLikes")
+  reports       Report[]         @relation("UserReports") // Добавлено для репортов
+}
+
+model Language {
+  id                 Int          @id @default(autoincrement())
+  code               String       @unique
+  name               String
+  words              Word[]
+  sourceDictionaries Dictionary[] @relation("SourceLanguage")
+  targetDictionaries Dictionary[] @relation("TargetLanguage")
+  userLearnedWords   UserWord[]
+  pairSources        LanguagePair[] @relation("PairSourceLanguage")
+  pairTargets        LanguagePair[] @relation("PairTargetLanguage")
+}
+
+model Dictionary {
+  id             Int              @id @default(autoincrement())
+  name           String
+  description    String?
+  isPublic       Boolean          @default(false) // Изменено с public на isPublic для соответствия коду
+  likes          Int              @default(0) // Добавлено для лайков
+  createdById    Int
+  sourceLangId   Int
+  targetLangId   Int
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  createdBy      User             @relation("UserCreatedDictionaries", fields: [createdById], references: [id])
+  sourceLanguage Language         @relation("SourceLanguage", fields: [sourceLangId], references: [id])
+  targetLanguage Language         @relation("TargetLanguage", fields: [targetLangId], references: [id])
+  wordSets       WordSet[]
+  words          Word[]
+  sessions       Session[]        @relation("DictionarySessions") // Добавлено для сессий
+  likesBy        DictionaryLike[]
+
+  @@unique([name, createdById])
+}
+
+model LanguagePair {
+  id           Int      @id @default(autoincrement())
+  sourceLangId Int
+  targetLangId Int
+  source       Language @relation("PairSourceLanguage", fields: [sourceLangId], references: [id])
+  target       Language @relation("PairTargetLanguage", fields: [targetLangId], references: [id])
+  userWords    UserWord[]
+
+  @@unique([sourceLangId, targetLangId])
+}
+
+model Word {
+  id           Int        @id @default(autoincrement())
+  word         String
+  translation  String
+  setId        Int?
+  dictionaryId Int
+  languageId   Int
+  set          WordSet?   @relation(fields: [setId], references: [id])
+  dictionary   Dictionary @relation(fields: [dictionaryId], references: [id])
+  language     Language   @relation(fields: [languageId], references: [id])
+
+  transcription   String? // Добавлено для поддержки транскрипции
+  exampleSentence String? // Добавлено для поддержки примера предложения
+
+  @@unique([word, dictionaryId])
+}
+
+model WordSet {
+  id           Int        @id @default(autoincrement())
+  name         String
+  public       Boolean    @default(false)
+  dictionaryId Int
+  dictionary   Dictionary @relation(fields: [dictionaryId], references: [id])
+  words        Word[]
+}
+
+model UserWord {
+  id              Int      @id @default(autoincrement())
+  userId          Int
+  wordText        String // Store word text directly instead of wordId
+  learned         Boolean  @default(false)
+  userTranslation String?
+  user            User     @relation(fields: [userId], references: [id])
+  languageId      Int?
+  language        Language? @relation(fields: [languageId], references: [id])
+  languagePairId  Int?
+  languagePair    LanguagePair? @relation(fields: [languagePairId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, wordText, languageId])
+}
+
+model UserHardWord {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  wordText  String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, wordText])
+}
+
+model UserStats {
+  id            Int      @id @default(autoincrement())
+  userId        Int      @unique
+  learnedCount  Int      @default(0)
+  streak        Int      @default(0)
+  totalSessions Int      @default(0) // Добавлено для соответствия коду
+  lastActive    DateTime @default(now())
+  user          User     @relation(fields: [userId], references: [id])
+}
+
+model Session {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  user         User       @relation("UserSessions", fields: [userId], references: [id])
+  dictionaryId Int
+  dictionary   Dictionary @relation("DictionarySessions", fields: [dictionaryId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  recalled     Int        @default(0)
+  notRecalled  Int        @default(0)
+  unknown      Int        @default(0)
+  mode         String     @default("unknown") // 'letters' | 'pair' | 'input' | 'learned' | 'other'
+  isMultiplayer Boolean   @default(false)
+}
+
+model HintUsage {
+  id       Int      @id @default(autoincrement())
+  userId   Int
+  user     User     @relation("UserHints", fields: [userId], references: [id])
+  wordText String
+  usedAt   DateTime @default(now())
+}
+
+model Subscription {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation("UserSubscriptions", fields: [userId], references: [id])
+  boostyLevel String
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DictionaryLike {
+  id           Int        @id @default(autoincrement())
+  userId       Int
+  dictionaryId Int
+  user         User       @relation("UserLikes", fields: [userId], references: [id])
+  dictionary   Dictionary @relation(fields: [dictionaryId], references: [id])
+  createdAt    DateTime   @default(now())
+
+  @@unique([userId, dictionaryId])
+}
+
+model Report {
+  id          Int      @id @default(autoincrement())
+  userId      Int
+  user        User     @relation("UserReports", fields: [userId], references: [id])
+  type        String   // 'bug', 'dictionary', 'feature', 'other'
+  comment     String
+  status      String   @default("pending") // 'pending', 'in_progress', 'resolved', 'closed'
+  adminNotes  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

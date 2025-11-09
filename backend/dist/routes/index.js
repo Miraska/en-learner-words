@@ -1,0 +1,33 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const authRoutes_1 = __importDefault(require("./authRoutes"));
+const dictionaryRoutes_1 = __importDefault(require("./dictionaryRoutes"));
+const wordRoutes_1 = __importDefault(require("./wordRoutes"));
+const hintRoutes_1 = __importDefault(require("./hintRoutes"));
+const sessionRoutes_1 = __importDefault(require("./sessionRoutes"));
+const adminRoutes_1 = __importDefault(require("./adminRoutes"));
+const reportRoutes_1 = __importDefault(require("./reportRoutes"));
+const languageController_1 = require("../controllers/languageController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const multiplayerController_1 = require("../controllers/multiplayerController");
+const router = (0, express_1.Router)();
+router.use('/auth', authRoutes_1.default);
+router.use('/dictionaries', dictionaryRoutes_1.default);
+router.use('/words', wordRoutes_1.default);
+router.use('/hints', hintRoutes_1.default);
+router.use('/sessions', sessionRoutes_1.default);
+router.use('/admin', adminRoutes_1.default);
+router.use('/reports', reportRoutes_1.default);
+router.get('/languages', languageController_1.languageController.getAll);
+router.get('/language-pairs', languageController_1.languageController.listPairs);
+router.post('/language-pairs', authMiddleware_1.authMiddleware, languageController_1.languageController.createPair);
+router.get('/language-pairs/:id/usage', languageController_1.languageController.getPairUsage);
+router.delete('/language-pairs/:id', authMiddleware_1.authMiddleware, languageController_1.languageController.deletePair);
+// Multiplayer endpoints
+router.post('/multiplayer/sessions', authMiddleware_1.authMiddleware, multiplayerController_1.multiplayerController.create);
+router.get('/multiplayer/sessions/:roomId', authMiddleware_1.authMiddleware, multiplayerController_1.multiplayerController.get);
+exports.default = router;

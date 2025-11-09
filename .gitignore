@@ -1,0 +1,17 @@
+node_modules/
+.env
+.env.local
+.env.development
+.env.production
+/dist/
+/build/
+/.next/
+/prisma/migrations/
+.vercel
+.railway
+.DS_Store
+.vscode/
+.idea/
+*.log
+/coverage/
+/.stfolder/
